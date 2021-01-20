@@ -1,13 +1,9 @@
 import sys
 import os
-from os import listdir
-from os.path import isfile, join
+import argparse
 import pandas as pd
 import re
 from Bio import SeqIO
-from tqdm import tqdm
-
-sys.stdout.write("Imported required packages successfully.\n")
 
 
 # set the master table for modification mass shifts
@@ -32,20 +28,25 @@ parser = argparse.ArgumentParser(
     description='A post-processing script to decode Skyline\'s Peptide Modified Sequence value into a short-hand \
                     histone mark. Please note that the mass shifts (e.g. [+42] = ac, [+80] = ph) are hard-coded \
                     so if you have novel histone modifications in your Skyline document, you\'ll need to add them\
-                    to this code!',
+                    to this code! This code is also intended for use with Skyline\'s Group Comparison report format.',
     formatter_class=argparse.ArgumentDefaultsHelpFormatter)
 
 parser.add_argument('fasta_file', type=str,
-                    help='a file with protein names and protein sequences in fasta format (e.g. download from Uniprot')
+                    help='a file with protein names and protein sequences in fasta format. The protein names must \
+                         match the Protein in the Skyline document (use the same fasta!)')
 parser.add_argument('skyline_groupcomp', type=str,
                     help='an export from Skyline\'s Group Comparison feature (View > Other Grids > Group Comparisons) \
                         which contains columns for Protein Name, Peptide Modified Sequence, Fold Change Result, and \
                         Adjusted P-Value. See user manual for tutorial on how to set this up in Skyline.')
+parser.add_argument('--output_path', default=os.getcwd(), type=str,
+                    help='specify an output path for the decoded result file')
 
 # parse arguments from command line
 args = parser.parse_args()
 fasta_file = args.fasta_file
 skyline_file = args.skyline_groupcomp
+output_dir = args.output_path
+
 
 ##
 ## read input files: FASTA and Skyline Export Report with Peptide Modified Sequences
@@ -54,7 +55,7 @@ skyline_file = args.skyline_groupcomp
 # parse FASTA for protein name and sequence
 
 protein_df = pd.DataFrame()  # Initialize a dataframe to store results
-for protein in tqdm(SeqIO.parse(fasta_file, "fasta")):
+for protein in SeqIO.parse(fasta_file, "fasta"):
 
     protein_sequence = str(protein.seq).upper()
 
@@ -72,6 +73,7 @@ protein_df = protein_df.drop_duplicates()
 # read in Skyline Export Report with Peptide Modified Sequences
 skyline_df = pd.read_csv(skyline_file)
 
+sys.stdout.write("Imported data, decoding modified peptide sequences now.\n")
 
 ##
 ## "decode" modified peptide sequences to biological histone marks
@@ -128,11 +130,17 @@ for index, row in skyline_df.iterrows():
 
 decode_df = decode_df.drop_duplicates()
 
+# make protein "groupings" for each non-unique histone mark
 decode_df = decode_df.groupby(['Peptide Modified Sequence',
+                               'Peptide Sequence',
                                'histone mark',
                                'Fold Change Result',
                                'Adjusted P-Value'])['Protein Name'].apply(
     lambda x: ','.join(x)).reset_index()
 
-decode_df.to_csv("D:/Penn/proj/collab_greer/data/greer_onlyhistlibrary_groupcomparison_mound-v-vegetative_decoded.csv",
-                 index=False)
+out_file = os.path.splitext(skyline_file)[0]
+
+decode_df.to_csv(path_or_buf=os.path.join(output_dir, (out_file+'_decoded.csv')),
+                   index=False)
+
+sys.stdout.write("Finished decoding modified peptide sequences.\n")
