@@ -1,14 +1,10 @@
 import sys
 import os
-from os import listdir
-from os.path import isfile, join
 import pandas as pd
 import re
 import numpy as np
 from Bio import SeqIO
-from pyteomics import fasta, parser, mass, achrom, electrochem, auxiliary
-import matplotlib.pyplot as plt
-import seaborn as sns
+from pyteomics import parser
 from tqdm import tqdm
 import itertools
 

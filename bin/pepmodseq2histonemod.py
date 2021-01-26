@@ -75,10 +75,10 @@ skyline_df = pd.read_csv(skyline_file)
 
 sys.stdout.write("Imported data, decoding modified peptide sequences now.\n")
 
+
 ##
 ## "decode" modified peptide sequences to biological histone marks
 ##
-
 
 # remove propionylations ([+56], [+112.1]) which aren't biologically relevant here
 skyline_df['new_pep_seq'] = skyline_df['Peptide Modified Sequence']

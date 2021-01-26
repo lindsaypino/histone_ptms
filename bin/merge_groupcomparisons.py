@@ -46,7 +46,7 @@ difftest_df = merge_df.drop(abundance_cols, axis=1)
 acquisition_df = pd.read_csv(acquisition_file)
 difftest_cols = ['Fold Change Result', 'Adjusted P-Value', 'Group Comparison']
 abundance_df = pd.melt(merge_df.drop(difftest_cols, axis=1),
-                       id_vars=['Protein', 'Peptide', 'Peptide Modified Sequence', 'MS Level'],
+                       id_vars=['Protein', 'Peptide', 'Peptide Modified Sequence', 'MS Level', 'histone mark'],
                        value_vars=abundance_cols,
                        var_name='Acquisition',
                        value_name='Normalized Abundance')
