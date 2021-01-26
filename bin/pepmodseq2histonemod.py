@@ -79,6 +79,7 @@ sys.stdout.write("Imported data, decoding modified peptide sequences now.\n")
 ## "decode" modified peptide sequences to biological histone marks
 ##
 
+
 # remove propionylations ([+56], [+112.1]) which aren't biologically relevant here
 skyline_df['new_pep_seq'] = skyline_df['Peptide Modified Sequence']
 skyline_df['new_pep_seq'] = skyline_df['new_pep_seq'].str.replace(r'\[\+56\]', '')
@@ -89,8 +90,6 @@ decode_df = pd.DataFrame()  # Initialize a dataframe to store results
 for index, row in skyline_df.iterrows():
     peptide = row['Peptide']
     mod_seq = row['new_pep_seq']
-    fc = row['Fold Change Result']
-    pval = row['Adjusted P-Value']
 
     # find all protein matches for the peptide in case there are duplicate/non-unique peptides
     protein_match = list(protein_df[protein_df['protein_sequence'].str.contains(peptide)]['protein'])
@@ -120,23 +119,18 @@ for index, row in skyline_df.iterrows():
                 histone_mod = histone_mod + new_mod
 
         # add this protein/peptide to the dataframe
-        new_df = pd.DataFrame({'Protein Name': protein,
-                               'Peptide Sequence': peptide,
-                               'Peptide Modified Sequence': row['Peptide Modified Sequence'],
-                               'histone mark': histone_mod,
-                               'Fold Change Result': fc,
-                               'Adjusted P-Value': pval}, index=[0])
+        new_df = row
+        new_df['histone mark'] = histone_mod
+
         decode_df = decode_df.append(new_df)
 
 decode_df = decode_df.drop_duplicates()
 
+allbut = list(decode_df.columns)
+allbut.remove('Protein')
+
 # make protein "groupings" for each non-unique histone mark
-decode_df = decode_df.groupby(['Peptide Modified Sequence',
-                               'Peptide Sequence',
-                               'histone mark',
-                               'Fold Change Result',
-                               'Adjusted P-Value'])['Protein Name'].apply(
-    lambda x: ','.join(x)).reset_index()
+decode_df = decode_df.groupby(allbut)['Protein'].apply(lambda x: ','.join(x)).reset_index()
 
 out_file = os.path.splitext(skyline_file)[0]
 
