@@ -56,12 +56,23 @@ abundance_df = pd.merge(abundance_df, acquisition_df, how='inner', on='Acquisiti
 abundance_df = abundance_df.dropna(subset=['Normalized Abundance'])
 abundance_df = abundance_df.drop_duplicates()
 
+# write a "percentages" dataframe
+percentage_df = abundance_df
+temp = percentage_df.groupby(['Protein', 'Peptide', 'Acquisition'])['Normalized Abundance'].agg('sum').reset_index()
+temp.rename(columns={'Normalized Abundance': 'Peptide Sum Abnd'}, inplace=True)
+
+percentage_df = pd.merge(percentage_df, temp, how='left', on=['Protein', 'Peptide', 'Acquisition'])
+percentage_df['Percentage Histone Mark'] = (percentage_df['Normalized Abundance']/percentage_df['Peptide Sum Abnd']) * 100
+
+
 # write out the parsed results
 merge_df.to_csv(path_or_buf=os.path.join(output_path, 'merged_skyline_groupcomparisons.csv'),
                 index=False)
 difftest_df.to_csv(path_or_buf=os.path.join(output_path, 'merged_skyline_groupcomparisons_difftest.csv'),
                 index=False)
 abundance_df.to_csv(path_or_buf=os.path.join(output_path, 'merged_skyline_groupcomparisons_abundances.csv'),
+                index=False)
+percentage_df.to_csv(path_or_buf=os.path.join(output_path, 'merged_skyline_groupcomparisons_percentages.csv'),
                 index=False)
 
 sys.stdout.write("Finished merging Skyline Group Comparison exports. Wrote out three parsed result dataframes.\n")
