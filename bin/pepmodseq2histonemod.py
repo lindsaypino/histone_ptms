@@ -81,6 +81,11 @@ elif 'Peptide Sequence' in skyline_df.columns:
 else:
     sys.exit('ERROR: Skyline export file must include Peptide Sequence column.\n')
 
+if 'Peptide Modified Sequence' in skyline_df.columns:
+    pass
+else:
+    sys.exit('ERROR: Skyline export file must include Peptide Modified Sequence column.\n')
+
 if 'Protein' in skyline_df.columns:
     pass
 elif 'Protein Name' in skyline_df.columns:
@@ -89,7 +94,6 @@ else:
     sys.exit('ERROR: Skyline export file must include Protein column.\n')
 
 sys.stdout.write("Successfully imported data, decoding modified peptide sequences now.\n")
-
 
 ##
 ## "decode" modified peptide sequences to biological histone marks
@@ -146,11 +150,14 @@ allbut = list(decode_df.columns)
 allbut.remove('Protein')
 
 # make protein "groupings" for each non-unique histone mark
-decode_df = decode_df.groupby(allbut)['Protein'].apply(lambda x: ','.join(x)).reset_index()
+#decode_df = decode_df.groupby(allbut)['Protein'].apply(lambda x: ','.join(x)).reset_index(); print(decode_df.head())
+protein_groups = decode_df.groupby(['Peptide Modified Sequence'])['Protein'].apply(set).apply(lambda x: ','.join(x)).reset_index()
+protein_groups = protein_groups[['Protein']]
+decode_df['Protein Group'] = protein_groups
+#sys.exit()
 
 out_file = os.path.splitext(skyline_file)[0]
 
-decode_df.to_csv(path_or_buf=os.path.join(output_dir, (out_file+'_decoded.csv')),
-                 index=False)
+decode_df.to_csv(path_or_buf=os.path.join(output_dir, (out_file+'_decoded.csv')), index=False)
 
 sys.stdout.write("Finished decoding modified peptide sequences.\n")
