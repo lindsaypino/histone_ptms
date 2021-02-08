@@ -73,7 +73,22 @@ protein_df = protein_df.drop_duplicates()
 # read in Skyline Export Report with Peptide Modified Sequences
 skyline_df = pd.read_csv(skyline_file)
 
-sys.stdout.write("Imported data, decoding modified peptide sequences now.\n")
+# check that the Skyline Export Report format has the minimum requirements
+if 'Peptide' in skyline_df.columns:
+    pass
+elif 'Peptide Sequence' in skyline_df.columns:
+    skyline_df = skyline_df.rename(columns={"Peptide Sequence": "Peptide"})
+else:
+    sys.exit('ERROR: Skyline export file must include Peptide Sequence column.\n')
+
+if 'Protein' in skyline_df.columns:
+    pass
+elif 'Protein Name' in skyline_df.columns:
+    skyline_df = skyline_df.rename(columns={"Protein Name": "Protein"})
+else:
+    sys.exit('ERROR: Skyline export file must include Protein column.\n')
+
+sys.stdout.write("Successfully imported data, decoding modified peptide sequences now.\n")
 
 
 ##
@@ -88,6 +103,7 @@ skyline_df['new_pep_seq'] = skyline_df['new_pep_seq'].str.replace(r'\[\+112.1\]'
 # decode each modified peptide sequence to its modified residue number and mod type
 decode_df = pd.DataFrame()  # Initialize a dataframe to store results
 for index, row in skyline_df.iterrows():
+
     peptide = row['Peptide']
     mod_seq = row['new_pep_seq']
 
@@ -135,6 +151,6 @@ decode_df = decode_df.groupby(allbut)['Protein'].apply(lambda x: ','.join(x)).re
 out_file = os.path.splitext(skyline_file)[0]
 
 decode_df.to_csv(path_or_buf=os.path.join(output_dir, (out_file+'_decoded.csv')),
-                   index=False)
+                 index=False)
 
 sys.stdout.write("Finished decoding modified peptide sequences.\n")
