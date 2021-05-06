@@ -15,13 +15,16 @@ MZSHIFT_DICT = {'[n-term PR]': '[+56]',
                 '[ME2]': '[+28]',
                 '[ME3]': '[+42]',
                 '[PH]': '[+80]',
+                '[PH+PR]': '[+136]',
                 '[n-term ME3+PR]': '[+98.1]',
                 '[n-term ME2+PR]': '[+84.1]',
                 '[n-term ME1+PR]': '[+126.1]',
                 '[n-term PR2]': '[+112.1]',
                 '[n-term AC]': '[+98]',
                 '[n-term AC+PR]': '[+84.1]',
-                '[GGprop+PR]': '[+170.1]'}
+                '[GGprop+PR]': '[+170.1]',
+                '[GG]': '[+114]',
+                '[OX]': '[+16]'}
 
 # usage statement and input descriptions
 parser = argparse.ArgumentParser(
@@ -112,7 +115,7 @@ for index, row in skyline_df.iterrows():
     mod_seq = row['new_pep_seq']
 
     # find all protein matches for the peptide in case there are duplicate/non-unique peptides
-    protein_match = list(protein_df[protein_df['protein_sequence'].str.contains(peptide)]['protein'])
+    protein_match = list(protein_df[protein_df['protein_sequence'].str.contains(peptide)]['protein']); #print(len(protein_match))
 
     # map each peptide to its residue position in the protein and change mass shift to modification
     for protein in protein_match:
@@ -141,22 +144,24 @@ for index, row in skyline_df.iterrows():
         # add this protein/peptide to the dataframe
         new_df = row
         new_df['histone mark'] = histone_mod
+        new_df['protein_match'] = protein
 
         decode_df = decode_df.append(new_df)
 
-decode_df = decode_df.drop_duplicates()
+decode_df = decode_df.drop_duplicates(); #decode_df.to_csv(path_or_buf='C:/Users/linds/Desktop/decode_df.csv', index=False)
 
 allbut = list(decode_df.columns)
 allbut.remove('Protein')
 
 # make protein "groupings" for each non-unique histone mark
 #decode_df = decode_df.groupby(allbut)['Protein'].apply(lambda x: ','.join(x)).reset_index(); print(decode_df.head())
-protein_groups = decode_df.groupby(['Peptide Modified Sequence'])['Protein'].apply(set).apply(lambda x: ','.join(x)).reset_index()
-protein_groups = protein_groups[['Protein']]
+protein_groups = decode_df.groupby(['Peptide Modified Sequence'])['protein_match'].apply(set).apply(lambda x: ','.join(x)).reset_index()
+protein_groups = protein_groups[['protein_match']]
 decode_df['Protein Group'] = protein_groups
 #sys.exit()
 
-out_file = os.path.splitext(skyline_file)[0]
+# TODO fix this parsing to get just the filename
+out_file = os.path.splitext(skyline_file)[0]; print(out_file)
 
 decode_df.to_csv(path_or_buf=os.path.join(output_dir, (out_file+'_decoded.csv')), index=False)
 
