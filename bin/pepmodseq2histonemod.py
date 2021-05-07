@@ -115,10 +115,11 @@ for index, row in skyline_df.iterrows():
     mod_seq = row['new_pep_seq']
 
     # find all protein matches for the peptide in case there are duplicate/non-unique peptides
-    protein_match = list(protein_df[protein_df['protein_sequence'].str.contains(peptide)]['protein']); #print(len(protein_match))
+    protein_matches = []
+    protein_matches = list(protein_df[protein_df['protein_sequence'].str.contains(peptide)]['protein'])
 
     # map each peptide to its residue position in the protein and change mass shift to modification
-    for protein in protein_match:
+    for protein in protein_matches:
         sequence = protein_df[protein_df['protein'] == protein]['protein_sequence'][0]
         aa_index = sequence.find(peptide)  # get the amino acid index position
 
@@ -148,16 +149,19 @@ for index, row in skyline_df.iterrows():
 
         decode_df = decode_df.append(new_df)
 
-decode_df = decode_df.drop_duplicates(); #decode_df.to_csv(path_or_buf='C:/Users/linds/Desktop/decode_df.csv', index=False)
+decode_df.drop_duplicates(inplace=True)
 
 allbut = list(decode_df.columns)
-allbut.remove('Protein')
+allbut.remove('protein_match')
 
 # make protein "groupings" for each non-unique histone mark
-#decode_df = decode_df.groupby(allbut)['Protein'].apply(lambda x: ','.join(x)).reset_index(); print(decode_df.head())
-protein_groups = decode_df.groupby(['Peptide Modified Sequence'])['protein_match'].apply(set).apply(lambda x: ','.join(x)).reset_index()
-protein_groups = protein_groups[['protein_match']]
-decode_df['Protein Group'] = protein_groups
+decode_df = decode_df.groupby(allbut)['protein_match'].apply(lambda x: ','.join(x)).reset_index()
+decode_df.drop(['Protein'], axis=1, inplace=True)
+decode_df.rename(columns = {'new_pep_seq': 'Biological Modified Sequence',
+                            'protein_match': 'Protein Group'},
+                 inplace = True)
+
+decode_df.drop_duplicates(inplace=True)
 #sys.exit()
 
 # TODO fix this parsing to get just the filename
