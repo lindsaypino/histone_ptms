@@ -31,23 +31,23 @@ parser = argparse.ArgumentParser(
     description='A post-processing script to decode Skyline\'s Peptide Modified Sequence value into a short-hand \
                     histone mark. Please note that the mass shifts (e.g. [+42] = ac, [+80] = ph) are hard-coded \
                     so if you have novel histone modifications in your Skyline document, you\'ll need to add them\
-                    to this code! This code is also intended for use with Skyline\'s Group Comparison report format.',
+                    to this code! This code is intended for use with Skyline\'s Document Grid>Peptides report format.',
     formatter_class=argparse.ArgumentDefaultsHelpFormatter)
 
 parser.add_argument('fasta_file', type=str,
                     help='a file with protein names and protein sequences in fasta format. The protein names must \
                          match the Protein in the Skyline document (use the same fasta!)')
-parser.add_argument('skyline_groupcomp', type=str,
-                    help='an export from Skyline\'s Group Comparison feature (View > Other Grids > Group Comparisons) \
-                        which contains columns for Protein Name, Peptide Modified Sequence, Fold Change Result, and \
-                        Adjusted P-Value. See user manual for tutorial on how to set this up in Skyline.')
+parser.add_argument('docgrid_peptides', type=str,
+                    help='an export from Skyline\'s "Peptides" document grid report (View > Document Grid > Peptides) \
+                        which contains the minimal required columns for Protein Name and Peptide Modified Sequence. \
+                        See user manual for tutorial for more details on how to set this up in Skyline.')
 parser.add_argument('--output_path', default=os.getcwd(), type=str,
                     help='specify an output path for the decoded result file')
 
 # parse arguments from command line
 args = parser.parse_args()
 fasta_file = args.fasta_file
-skyline_file = args.skyline_groupcomp
+skyline_file = args.docgrid_peptides
 output_dir = args.output_path
 
 
@@ -149,14 +149,15 @@ for index, row in skyline_df.iterrows():
 
         decode_df = decode_df.append(new_df)
 
-decode_df.drop_duplicates(inplace=True)
+decode_df.drop_duplicates(inplace=True); print(decode_df.head())
+decode_df = decode_df[['new_pep_seq', 'protein_match', 'histone mark']]
 
 allbut = list(decode_df.columns)
 allbut.remove('protein_match')
 
 # make protein "groupings" for each non-unique histone mark
-decode_df = decode_df.groupby(allbut)['protein_match'].apply(lambda x: ','.join(x)).reset_index()
-decode_df.drop(['Protein'], axis=1, inplace=True)
+decode_df = decode_df.groupby(allbut)['protein_match'].apply(lambda x: ','.join(x)).reset_index(); print(decode_df.head())
+#decode_df.drop(['Protein'], axis=1, inplace=True)
 decode_df.rename(columns = {'new_pep_seq': 'Biological Modified Sequence',
                             'protein_match': 'Protein Group'},
                  inplace = True)
