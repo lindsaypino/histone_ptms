@@ -22,9 +22,11 @@ MZSHIFT_DICT = {'[n-term PR]': '[+56]',
                 '[n-term PR2]': '[+112.1]',
                 '[n-term AC]': '[+98]',
                 '[n-term AC+PR]': '[+84.1]',
-                '[GGprop+PR]': '[+170.1]',
+                '[GG+PR]': '[+170.1]',
                 '[GG]': '[+114]',
-                '[OX]': '[+16]'}
+                '[OX]': '[+16]',
+                '[D3-AC]': '[+3]',
+                '[ME2+D3ac]': '[+9.1]'}
 
 # usage statement and input descriptions
 parser = argparse.ArgumentParser(
@@ -62,13 +64,18 @@ for protein in SeqIO.parse(fasta_file, "fasta"):
 
     protein_sequence = str(protein.seq).upper()
 
+    # add some protein description parsing for non-model organisms that don't have useful gene names
+    if "|" and "OS=" in str(protein.description):
+        protein_desc = re.sub(r'([a-z]+\|[A-Z][0-9A-Z]+\.?\d*\|[0-9A-Z]+_[A-Z]+ )', '', str(protein.description)).split(" OS=", 1)[0]
+
     # cleave initial "start" methionine if present
     if protein_sequence[0] == "M":
         protein_sequence = protein_sequence[1:]
 
     # add this protein to the dataframe
     new_df = pd.DataFrame({'protein': protein.id,
-                           'protein_sequence': protein_sequence}, index=[0])
+                           'protein_sequence': protein_sequence,
+                           'protein_desc': protein_desc}, index=[0])
 
     protein_df = protein_df.append(new_df)
 protein_df = protein_df.drop_duplicates()
@@ -83,12 +90,10 @@ elif 'Peptide Sequence' in skyline_df.columns:
     skyline_df = skyline_df.rename(columns={"Peptide Sequence": "Peptide"})
 else:
     sys.exit('ERROR: Skyline export file must include Peptide Sequence column.\n')
-
 if 'Peptide Modified Sequence' in skyline_df.columns:
     pass
 else:
     sys.exit('ERROR: Skyline export file must include Peptide Modified Sequence column.\n')
-
 if 'Protein' in skyline_df.columns:
     pass
 elif 'Protein Name' in skyline_df.columns:
@@ -98,14 +103,12 @@ else:
 
 sys.stdout.write("Successfully imported data, decoding modified peptide sequences now.\n")
 
+
 ##
 ## "decode" modified peptide sequences to biological histone marks
 ##
 
-# remove propionylations ([+56], [+112.1]) which aren't biologically relevant here
 skyline_df['new_pep_seq'] = skyline_df['Peptide Modified Sequence']
-skyline_df['new_pep_seq'] = skyline_df['new_pep_seq'].str.replace(r'\[\+56\]', '')
-skyline_df['new_pep_seq'] = skyline_df['new_pep_seq'].str.replace(r'\[\+112.1\]', '')
 
 # decode each modified peptide sequence to its modified residue number and mod type
 decode_df = pd.DataFrame()  # Initialize a dataframe to store results
@@ -129,7 +132,7 @@ for index, row in skyline_df.iterrows():
         # build the [Residue][Index Position][modification] histone mark
         histone_mod = ''
         for i in range(len(residue_list)):
-            if '[' in residue_list[i]:
+            if '[' in residue_list[i] and '56' not in residue_list[i]:
                 aa_pos = aa_index + i + 1  # have to +1 for indexing
 
                 # match the mass shift to the mod and format to make it pretty
@@ -146,24 +149,35 @@ for index, row in skyline_df.iterrows():
         new_df = row
         new_df['histone mark'] = histone_mod
         new_df['protein_match'] = protein
+        new_df['protein_desc'] = protein_df[protein_df['protein'] == protein]['protein_desc'][0]
+        #print(new_df)
 
         decode_df = decode_df.append(new_df)
 
-decode_df.drop_duplicates(inplace=True); print(decode_df.head())
-decode_df = decode_df[['new_pep_seq', 'protein_match', 'histone mark']]
+decode_df = decode_df[['new_pep_seq', 'protein_match', 'protein_desc', 'histone mark']]
+decode_df.drop_duplicates(inplace=True)
 
 allbut = list(decode_df.columns)
 allbut.remove('protein_match')
+allbut.remove('protein_desc')
 
 # make protein "groupings" for each non-unique histone mark
-decode_df = decode_df.groupby(allbut)['protein_match'].apply(lambda x: ','.join(x)).reset_index(); print(decode_df.head())
+concat_names = decode_df.groupby(allbut)['protein_desc'].apply(lambda x: ','.join(x)).reset_index(); print(concat_names.head())
+decode_df = decode_df.groupby(allbut)['protein_match'].apply(lambda x: ','.join(x)).reset_index(); #print(decode_df.head())
+decode_df['protein_desc'] = concat_names['protein_desc']
+decode_df.head()
+
+#sys.exit()
+
 #decode_df.drop(['Protein'], axis=1, inplace=True)
-decode_df.rename(columns = {'new_pep_seq': 'Biological Modified Sequence',
-                            'protein_match': 'Protein Group'},
+decode_df.rename(columns = {'new_pep_seq': 'Peptide Modified Sequence',
+                            'protein_match': 'Protein Group',
+                            'protein_desc': 'Protein Description'},
                  inplace = True)
 
+decode_df = decode_df[['Peptide Modified Sequence', 'Protein Group', 'Protein Description', 'histone mark']]
+
 decode_df.drop_duplicates(inplace=True)
-#sys.exit()
 
 # TODO fix this parsing to get just the filename
 out_file = os.path.splitext(skyline_file)[0]; print(out_file)
